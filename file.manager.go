@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	// lip "github.com/charmbracelet/lipgloss"
+	lip "github.com/charmbracelet/lipgloss"
 )
 
 type model struct {
@@ -19,24 +19,62 @@ type model struct {
 }
 
 func initialiseModel() model {
+	m := model{
+		err: nil,
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		panic(err)
+		m.err = err
 	}
 	ent, err := os.ReadDir(cwd)
 	if err != nil {
-		panic(err)
+		m.err = err
 	}
 
-	return model{
-		files:    ent,
-		selected: make(map[string]struct{}),
-		cwd:      cwd,
-		err:      nil,
-	}
+	m.files = ent
+	m.selected = make(map[string]struct{})
+	m.cwd = cwd
+
+	return m
 }
 
 func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func (m *model) HandleSelect() error {
+
+	if m.files[m.cursor].IsDir() == true {
+		ent, err := os.ReadDir(m.files[m.cursor].Name())
+		if err != nil {
+			return err
+		}
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		m.cwd = cwd + "/" + m.files[m.cursor].Name()
+		m.files = ent
+		m.cursor = 0
+	} else {
+		_, ok := m.selected[m.cwd+"/"+m.files[m.cursor].Name()]
+		if ok {
+			delete(m.selected, m.cwd+"/"+m.files[m.cursor].Name())
+		} else {
+			m.selected[m.cwd+"/"+m.files[m.cursor].Name()] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func (m *model) HandleGoBackDir() error {
+	prevDir := filepath.Dir(m.cwd)
+	ent, err := os.ReadDir(prevDir)
+	if err != nil {
+		return err
+	}
+	m.files = ent
+	m.cwd = prevDir
 	return nil
 }
 
@@ -55,34 +93,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 		case " ":
-			if m.files[m.cursor].IsDir() != true {
-				_, ok := m.selected[m.cwd+"/"+m.files[m.cursor].Name()]
-				if ok {
-					delete(m.selected, m.cwd+"/"+m.files[m.cursor].Name())
-				} else {
-					m.selected[m.cwd+"/"+m.files[m.cursor].Name()] = struct{}{}
-				}
-			} else {
-				ent, err := os.ReadDir(m.files[m.cursor].Name())
-				if err != nil {
-					panic(err)
-				}
-				cwd, err := os.Getwd()
-				if err != nil {
-					panic(err)
-				}
-				m.cwd = cwd + "/" + m.files[m.cursor].Name()
-				m.files = ent
-				m.cursor = 0
-			}
-		case "h", "backspace", "left":
-			prevDir := filepath.Dir(m.cwd)
-			ent, err := os.ReadDir(prevDir)
+			err := m.HandleSelect()
 			if err != nil {
-				panic(err)
+				m.err = err
+				return m, nil
 			}
-			m.files = ent
-			m.cwd = prevDir
+
+		case "h", "backspace", "left":
+			err := m.HandleGoBackDir()
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
 		case "enter":
 			m.final = []string{}
 			for key := range m.selected {
@@ -95,52 +117,135 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) ShowError() string {
+	var style = lip.NewStyle().
+		Bold(true).
+		Foreground(ErrorText).
+		Align(lip.Center)
+
+	s := style.Render(m.err.Error())
+
+	return s
+}
+
+func (m model) ShowFooter() string {
+	var style = lip.NewStyle().
+		Foreground(FooterGrey)
+	var s string
+
+	if m.err != nil {
+		s = style.Render("Press q to quit.")
+	} else {
+		s = style.Render("Press q to quit.\tj/k or up/down for movement.\th or backspace to go up a directory.\n")
+	}
+
+	return s
+
+}
+
+func (m model) ShowTitle() string {
+	var style = lip.NewStyle().
+		Bold(true).
+		Background(TitleBackground).
+		Foreground(TitleForeground).
+		Align(lip.Center)
+
+	return style.Render("Distribute")
+}
+
+func (m model) ShowHighlightedText(s string) string {
+	var style = lip.NewStyle().
+		Bold(true).
+		Foreground(TextHighlight)
+
+	return style.Render(s)
+}
+
+func (m model) ShowSubTitle(s string) string {
+	var style = lip.NewStyle().
+		Bold(true).
+		Background(SubtitleBackground).
+		Foreground(SubtitleForeground).
+		Align(lip.Center).
+		PaddingLeft(5).
+		PaddingRight(5).
+		Width(15)
+
+	return style.Render(s)
+}
+
+func (m model) ShowCursor(s string) string {
+	var style = lip.NewStyle().
+		Foreground(Cursor)
+
+	return style.Render(s)
+}
+
+func (m model) ShowSelected(s string) string {
+	var style = lip.NewStyle().
+		Foreground(ListSelected)
+
+	return style.Render(s)
+}
+
 func (m model) View() string {
-	s := "What files to select?\n\n"
+	if m.err != nil {
+		s := m.ShowTitle()
+		s += m.ShowError()
+		s += "\n\n"
+		s += m.ShowFooter()
+		return s
+	}
+	var style = lip.NewStyle().
+		Foreground(GenericText)
+
+	s := m.ShowSubTitle("What files to select?")
+
+	s += "\n\n"
 
 	// Iterate over our choices
 	for i, choice := range m.files {
+		filename := choice.Name()
 
 		// Is the cursor pointing at this choice?
-		cursor := " " // no cursor
+		cursor := style.Render(" ") // no cursor
 		if m.cursor == i {
-			cursor = ">" // cursor!
+			cursor = m.ShowCursor(">") // cursor!
 		}
 
 		// Is this choice selected?
-		checked := " " // not selected
+		checked := style.Render("[ ]") // not selected
 		if _, ok := m.selected[m.cwd+"/"+m.files[i].Name()]; ok {
-			checked = "x" // selected!
+			checked = m.ShowSelected("[x]") // selected!
+			filename = m.ShowSelected(filename)
 		}
 
 		// Render the row
 		if choice.IsDir() {
-			s += fmt.Sprintf("%s 📁 %s\n", cursor, choice)
+			filename = m.ShowHighlightedText(filename)
+			s += fmt.Sprintf("%s 📁 %s\n", cursor, filename)
 		} else {
-			s += fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice)
+			s += fmt.Sprintf("%s %s %s\n", cursor, checked, filename)
 		}
 	}
 
 	// The footer
-	s += "\nPress q to quit.\tj/k or up/down for movement.\th or backspace to go up a directory.\n"
-
-	if m.err != nil {
-		s += fmt.Sprintf("\n%v\n", m.err)
-	}
+	s += m.ShowFooter()
 
 	// Send the UI for rendering
 	return s
 }
 
-func output() {
+func SelectFiles() []string {
 
-	p := tea.NewProgram(initialiseModel())
+	p := tea.NewProgram(initialiseModel(), tea.WithAltScreen())
 	output, err := p.Run()
 	if err != nil {
 		os.Exit(1)
 	}
 
 	if m, ok := output.(model); ok {
-		fmt.Printf("Final Output: %s\n", m.final)
+		return m.final
 	}
+	return []string{}
 }

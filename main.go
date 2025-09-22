@@ -1,5 +1,8 @@
 package main
 
+import "fmt"
+
 func main() {
-	output()
+	out := SelectFiles()
+	fmt.Printf("%v", out)
 }
