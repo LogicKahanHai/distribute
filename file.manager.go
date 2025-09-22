@@ -148,7 +148,9 @@ func (m model) ShowTitle() string {
 		Bold(true).
 		Background(TitleBackground).
 		Foreground(TitleForeground).
-		Align(lip.Center)
+		Align(lip.Center).
+		PaddingLeft(5).
+		PaddingRight(5)
 
 	return style.Render("Distribute")
 }
@@ -168,8 +170,7 @@ func (m model) ShowSubTitle(s string) string {
 		Foreground(SubtitleForeground).
 		Align(lip.Center).
 		PaddingLeft(5).
-		PaddingRight(5).
-		Width(15)
+		PaddingRight(5)
 
 	return style.Render(s)
 }
@@ -189,6 +190,7 @@ func (m model) ShowSelected(s string) string {
 }
 
 func (m model) View() string {
+	sectionBreak := "\n\n"
 	if m.err != nil {
 		s := m.ShowTitle()
 		s += m.ShowError()
@@ -199,9 +201,11 @@ func (m model) View() string {
 	var style = lip.NewStyle().
 		Foreground(GenericText)
 
-	s := m.ShowSubTitle("What files to select?")
+	s := m.ShowTitle()
+	s += sectionBreak
+	s += m.ShowSubTitle("What files to select?")
 
-	s += "\n\n"
+	s += sectionBreak
 
 	// Iterate over our choices
 	for i, choice := range m.files {
