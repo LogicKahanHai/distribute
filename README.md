@@ -1,7 +1,7 @@
 # Distribute
 
 
-> [!WARN]
+> [!WARNING]
 > I am VERY new to GO Language, this is literally my first project with this language and I will
 > keep this warning here, till I feel confident that this project has no **amateur** bugs. Please
 > run this script ONLY on not so important systems. For e.g. I run it to connect my personal
