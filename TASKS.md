@@ -1,7 +1,7 @@
 # CURRENTLY WORKING ON
 
 - [*] TASKS
-    - [ ] Use filepath to join all the file paths
+    - [x] Use filepath to join all the file paths
     - [x] Create and/or read the deploy_config.json file
     - [ ] Confirm if it is the project root
     - [ ] Confirm that SSH is possible and ask for the password from the user

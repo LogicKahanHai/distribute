@@ -18,7 +18,11 @@ type model struct {
 	final    []string
 }
 
-func initialiseModel() model {
+func joinFilePath(segs ...string) string {
+	return filepath.Join(segs...)
+}
+
+func initialiseModel(config ConfigFile) model {
 	m := model{
 		err: nil,
 	}
@@ -34,6 +38,10 @@ func initialiseModel() model {
 	m.files = ent
 	m.selected = make(map[string]struct{})
 	m.cwd = cwd
+
+	for _, files := range config.Build.Files {
+		m.selected[files] = struct{}{}
+	}
 
 	return m
 }
@@ -53,15 +61,15 @@ func (m *model) HandleSelect() error {
 		if err != nil {
 			return err
 		}
-		m.cwd = cwd + "/" + m.files[m.cursor].Name()
+		m.cwd = joinFilePath(cwd, m.files[m.cursor].Name())
 		m.files = ent
 		m.cursor = 0
 	} else {
-		_, ok := m.selected[m.cwd+"/"+m.files[m.cursor].Name()]
+		_, ok := m.selected[joinFilePath(m.cwd, m.files[m.cursor].Name())]
 		if ok {
-			delete(m.selected, m.cwd+"/"+m.files[m.cursor].Name())
+			delete(m.selected, joinFilePath(m.cwd, m.files[m.cursor].Name()))
 		} else {
-			m.selected[m.cwd+"/"+m.files[m.cursor].Name()] = struct{}{}
+			m.selected[joinFilePath(m.cwd, m.files[m.cursor].Name())] = struct{}{}
 		}
 	}
 	return nil
@@ -219,7 +227,7 @@ func (m model) View() string {
 
 		// Is this choice selected?
 		checked := style.Render("[ ]") // not selected
-		if _, ok := m.selected[m.cwd+"/"+m.files[i].Name()]; ok {
+		if _, ok := m.selected[joinFilePath(m.cwd, m.files[i].Name())]; ok {
 			checked = m.ShowSelected("[x]") // selected!
 			filename = m.ShowSelected(filename)
 		}
@@ -240,9 +248,9 @@ func (m model) View() string {
 	return s
 }
 
-func SelectFiles() []string {
+func SelectFiles(config ConfigFile) []string {
 
-	p := tea.NewProgram(initialiseModel(), tea.WithAltScreen())
+	p := tea.NewProgram(initialiseModel(config), tea.WithAltScreen())
 	output, err := p.Run()
 	if err != nil {
 		os.Exit(1)

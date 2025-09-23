@@ -10,7 +10,7 @@ func main() {
 	file := Config()
 
 	// STEP n: Select the files apart from the build folder, to send to the server
-	impFiles := SelectFiles()
+	impFiles := SelectFiles(*file)
 	if len(impFiles) == 0 {
 		fmt.Println("No Files selected")
 		os.Exit(0)
