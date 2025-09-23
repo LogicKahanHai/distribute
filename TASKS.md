@@ -1,7 +1,8 @@
 # CURRENTLY WORKING ON
 
-- [ ] TASKS
-    - [ ] Create and/or read the deploy_config.json file
+- [*] TASKS
+    - [ ] Use filepath to join all the file paths
+    - [x] Create and/or read the deploy_config.json file
     - [ ] Confirm if it is the project root
     - [ ] Confirm that SSH is possible and ask for the password from the user
     - [ ] Ask for the build command (if not present) or take the build command from the config file and build the project
